@@ -22,10 +22,16 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 
 // Relay pins
-const int relayAzLeft  = 13;
-const int relayAzRight = 14;
-const int relayElDown  = 21;
-const int relayElUp    = 47;
+//const int relayAzLeft  = 13;
+//const int relayAzRight = 14;
+//const int relayElDown  = 21;
+//const int relayElUp    = 47;
+
+// Relay pins AFTER REWIRE
+const int relayAzLeft  = 47;
+const int relayAzRight = 21;
+const int relayElDown  = 14;
+const int relayElUp    = 13;
 
 // GS-232 state
 double targetAz = NAN, targetEl = NAN;
