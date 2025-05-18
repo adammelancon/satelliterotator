@@ -8,6 +8,9 @@ This repository contains two complementary components for a DIY satellite tracki
 * Arduino-based firmware for controlling a pan/tilt head using the GS-232 protocol.
 * A Python-based proxy server that listens for rotor commands from applications like Gpredict and forwards them to the microcontroller using the GS-232 protocol on a serial connection.
 
+<img src="https://raw.githubusercontent.com/adammelancon/satelliterotator/refs/heads/main/images/IMG_9037.jpeg" width="300">
+
+
 ---
 
 ## 📁 Directory Overview
