@@ -10,7 +10,13 @@
 #define RELAY_INACTIVE_LEVEL LOW
 
 bool displayCommandActivity = false;
+bool debugMode = false;
 
+// Dance Sequencer
+int dancePhase = 0; // 0=Idle, 1=Prep, 2=Left, 3=Right, 4=Re-Center, 5=Up, 6=Down, 7=CenterEL
+unsigned long danceTimer = 0;
+float danceStartAz = 0;
+float danceStartEl = 0;
 
 // —— OLED Setup ——
 #define SCREEN_WIDTH 128
@@ -63,7 +69,9 @@ float readHeading(const sensors_event_t &ev) {
 
 // ——— Hard-coded calibration (optional) ———
 const bool USE_HARDCODED = false;
-const adafruit_bno055_offsets_t defaultOffsets = { -32, -59, -32, 216, -63, -654, -1, 2, 0, 1000, 746 };
+const adafruit_bno055_offsets_t defaultOffsets = { -33, -70, -29, 188, 160, -795, 0, 2, 0, 1000, 666 };
+// -33, -70, -29, 188, 160, -795, 0, 2, 0, 1000, 666 
+// -32, -59, -32, 216, -63, -654, -1, 2, 0, 1000, 746 
 
 // ——— EEPROM calibration storage ———
 const uint32_t EEPROM_MAGIC  = 0x424E4F43;
@@ -275,6 +283,17 @@ void updateOrientationDisplay() {
   display.setCursor(0, 0);   display.print("AZ:"); display.print(az,1);
   display.setCursor(0, 8);   display.print("EL:"); display.print(el,1);
 
+  // Debug to Serial Monitor
+  if (debugMode) {
+    Serial.print("DEBUG | RawX:"); Serial.print(ev.orientation.x, 1);
+    Serial.print(" | CalcAZ:"); Serial.print(az, 1);
+    Serial.print(" | Calib[S:"); Serial.print(sys);
+    Serial.print(" G:"); Serial.print(gyro);
+    Serial.print(" A:"); Serial.print(accel);
+    Serial.print(" M:"); Serial.print(mag);
+    Serial.println("]");
+  }
+
   // Spacer line
   display.setCursor(0, 16);  display.println("");
 
@@ -312,8 +331,8 @@ void handleCommand(const String &cmd) {
   displayCommandActivity = true;
 
   if (cmd.startsWith("AZ")) {
-    if (cmd.length()>3 && isDigit(cmd.charAt(3))) {
-      targetAz = cmd.substring(3).toFloat();
+    if (cmd.length() > 2 && (isDigit(cmd.charAt(2)) || cmd.charAt(2) == ' ')) {
+      targetAz = cmd.substring(2).toFloat();
       azMove = true;
       Serial.print("RPRT 0\r");
     } else {
@@ -330,6 +349,9 @@ void handleCommand(const String &cmd) {
     Serial.println("EL         → Get current elevation");
     Serial.println("ELxxx.x    → Set target elevation (e.g. EL45.6)");
     Serial.println("P          → Get current AZ and EL (position)");
+    Serial.println("HOME       → Move to Home position (AZ180 EL45)");
+    Serial.println("DANCE      → Perform calibration movements");
+    Serial.println("DEBUG      → Toggle raw sensor debug output");
     Serial.println("CALIBRATE  → Start calibration and store offsets");
     Serial.println("CALSTATS   → Print current calibration values");
     Serial.println("SA         → Stop azimuth movement");
@@ -339,9 +361,25 @@ void handleCommand(const String &cmd) {
     Serial.println("HELP       → Show this help message");
     Serial.print("RPRT 0\r");
   }
+  else if (cmd.equalsIgnoreCase("HOME")) {
+    targetAz = 180.0;
+    targetEl = 45.0;
+    azMove = true;
+    elMove = true;
+    Serial.print("RPRT 0\r");
+  }
+  else if (cmd.equalsIgnoreCase("DANCE")) {
+    dancePhase = 1; 
+    Serial.println("Starting Dance... Type SA or SE to abort.");
+    Serial.print("RPRT 0\r");
+  }
+  else if (cmd.equalsIgnoreCase("DEBUG")) {
+    debugMode = !debugMode;
+    Serial.print(debugMode ? "DEBUG ON\r" : "DEBUG OFF\r");
+  }
   else if (cmd.startsWith("EL")) {
-    if (cmd.length()>3 && isDigit(cmd.charAt(3))) {
-      targetEl = cmd.substring(3).toFloat();
+    if (cmd.length() > 2 && (isDigit(cmd.charAt(2)) || cmd.charAt(2) == ' ')) {
+      targetEl = cmd.substring(2).toFloat();
       elMove = true;
       Serial.print("RPRT 0\r");
     } else {
@@ -405,5 +443,75 @@ void loop() {
   if (millis() - lastUpdateMs >= updateInterval) {
     updateOrientationDisplay();
     lastUpdateMs = millis();
+  }
+
+  // --- Dance Sequencer ---
+  if (dancePhase > 0) {
+    // If we are currently moving, keep resetting the timer so it only starts counting once stopped
+    if (azMove || elMove) {
+      danceTimer = millis();
+    }
+    
+    // Check if current move is done AND we have paused for 3 seconds
+    if (!azMove && !elMove && millis() - danceTimer > 3000) {
+       sensors_event_t ev; bno.getEvent(&ev);
+       float curAz = readHeading(ev);
+       float curEl = getSmoothedEl(); // use smoothed
+
+       switch (dancePhase) {
+         case 1: // Prep: Store start position
+           danceStartAz = curAz;
+           danceStartEl = curEl;
+           Serial.println("Dance: Going Left -30");
+           targetAz = danceStartAz - 30;
+           if (targetAz < 0) targetAz += 360;
+           azMove = true;
+           dancePhase = 2;
+           break;
+           
+         case 2: // Finished Left, Go Right (+30 from start)
+           Serial.println("Dance: Going Right +30");
+           targetAz = danceStartAz + 30;
+           if (targetAz >= 360) targetAz -= 360;
+           azMove = true;
+           dancePhase = 3;
+           break;
+
+         case 3: // Finished Right, Return to Az Center
+           Serial.println("Dance: Centering Az");
+           targetAz = danceStartAz;
+           azMove = true;
+           dancePhase = 4;
+           break;
+
+         case 4: // Finished Az, Start El Up (+20)
+           Serial.println("Dance: Going Up +20");
+           targetEl = danceStartEl + 20;
+           if (targetEl > 90) targetEl = 90;
+           elMove = true;
+           dancePhase = 5;
+           break;
+           
+         case 5: // Finished Up, Go Down (-20 from start)
+           Serial.println("Dance: Going Down -20");
+           targetEl = danceStartEl - 20;
+           if (targetEl < 0) targetEl = 0;
+           elMove = true;
+           dancePhase = 6;
+           break;
+
+         case 6: // Finished Down, Return to El Center
+           Serial.println("Dance: Centering El");
+           targetEl = danceStartEl;
+           elMove = true;
+           dancePhase = 7;
+           break;
+
+         case 7: // Done
+           Serial.println("Dance Complete!");
+           dancePhase = 0; 
+           break;
+       }
+    }
   }
 }

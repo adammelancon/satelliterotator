@@ -1,0 +1,22 @@
+# Gemini CLI
+.gemini/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+env/
+.env
+
+# Arduino/PlatformIO/Builds
+.pio/
+build/
+*.hex
+*.elf
+*.bin
+
+# Logs and Temp
+*.log
+tmp/

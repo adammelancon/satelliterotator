@@ -35,12 +35,14 @@ This repository contains two complementary components for a DIY satellite tracki
 
 1. **Flash the firmware** in `gs232rotator/` to your ESP32-S3 using Arduino IDE.
 2. **Run the Python proxy** on your computer:
-
-   or edit the .bat file and run it from there
+   
+   The included `run.bat` script handles dependencies automatically using `uv`. Just double-click it or run:
 
    ```bash
-   python rotator_proxy.py --serial-port COM12 --baud 115200 --listen-host 127.0.0.1 --listen-port 7777
+   gpredictpythonrotatorproxy\run.bat
    ```
+   
+   *(If `uv` is not installed, the script will offer to install it for you).*
 3. **Configure Gpredict**:
    * Name `RS232Proxy`
    * Host: `127.0.0.1`
@@ -100,6 +102,9 @@ The ESP32 controller accepts a mix of GS-232-style and custom serial commands ov
 | Command     | Description                                 |
 |-------------|---------------------------------------------|
 | `HELP`      | Show list of available commands             |
+| `HOME`      | Move to Home position (Az 180, El 45)       |
+| `DANCE`     | Perform calibration movements (L/R/U/D)     |
+| `DEBUG`     | Toggle raw sensor debug output to serial    |
 | `CALIBRATE` | Start calibration and store offsets to EEPROM |
 | `CALSTATS`  | Print current calibration offsets           |
 

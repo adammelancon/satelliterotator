@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = ["pyserial"]
+# ///
 import socket
 import threading
 import argparse
