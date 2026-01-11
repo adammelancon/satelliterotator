@@ -34,6 +34,10 @@ This repository contains two complementary components for a DIY satellite tracki
 ## ⚙️ Setup Instructions
 
 1. **Flash the firmware** in `gs232rotator/` to your ESP32-S3 using Arduino IDE.
+   
+   > [!IMPORTANT]
+   > **For ESP32-S3 Users:** In the Arduino IDE, you **must** go to **Tools > USB CDC On Boot** and set it to **Enabled**. If this is disabled, the controller will not be able to communicate with the Python proxy over the USB Serial port.
+
 2. **Run the Python proxy** on your computer:
    
    The included `run.bat` script handles dependencies automatically using `uv`. Just double-click it or run:
